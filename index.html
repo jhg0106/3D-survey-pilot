@@ -56,7 +56,7 @@
     <header class="glass-panel h-16 px-6 flex items-center justify-between border-b border-slate-800 z-10 flex-shrink-0">
         <div class="flex items-center space-x-3">
             <div class="bg-gradient-to-tr from-cyan-500 to-blue-600 p-2 rounded-lg text-white">
-                <i class="fa-solid fa-drone fa-lg"></i>
+                <i class="fa-solid fa-plane fa-lg"></i>
             </div>
             <div>
                 <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
@@ -84,21 +84,24 @@
         
         <!-- Quick Action Buttons -->
         <div class="flex items-center space-x-2">
-            <button id="btn-guide-modal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md text-xs font-medium flex items-center space-x-1.5 transition-colors border border-slate-700">
+            <button id="btn-guide-modal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md text-xs font-medium flex items-center space-x-1.5 transition-colors border border-slate-700 hidden sm:flex">
                 <i class="fa-solid fa-cloud-arrow-up"></i>
                 <span>개발 & 배포 안내</span>
             </button>
             <button id="btn-sound" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-md text-slate-300 transition-colors">
                 <i class="fa-solid fa-volume-high"></i>
             </button>
+             <button id="btn-toggle-sidebar" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-md text-slate-300 transition-colors md:hidden">
+                <i class="fa-solid fa-bars"></i>
+            </button>
         </div>
     </header>
 
     <!-- Main Interactive Dashboard Container -->
-    <div class="flex flex-1 overflow-hidden relative">
+    <div class="flex flex-1 overflow-hidden relative flex-col md:flex-row">
         
         <!-- Left Sidebar: Flight Planning Configurator -->
-        <aside class="w-80 glass-panel border-r border-slate-800 flex flex-col h-full z-10 overflow-y-auto">
+        <aside id="sidebar-panel" class="w-full md:w-80 glass-panel border-b md:border-r border-slate-800 flex flex-col h-[50vh] md:h-full z-20 overflow-y-auto transition-all duration-300 md:relative absolute top-0 left-0 bg-slate-950/95 md:bg-transparent hidden md:flex">
             
             <!-- Tab Selection -->
             <div class="flex border-b border-slate-800 text-xs font-semibold">
@@ -303,18 +306,18 @@
             </div>
 
             <!-- Footer Logo / Info -->
-            <div class="mt-auto border-t border-slate-800 p-4 bg-slate-950/80 flex items-center justify-between text-[11px] text-slate-500">
+            <div class="mt-auto border-t border-slate-800 p-4 bg-slate-950/80 flex items-center justify-between text-[11px] text-slate-500 hidden md:flex">
                 <span>South Korea Survey Standard</span>
                 <span class="font-mono">K-Geoid18 Compatible</span>
             </div>
         </aside>
 
         <!-- Center / Right: Main 3D Simulation Canvas -->
-        <main class="flex-1 h-full relative">
+        <main class="flex-1 h-full relative z-10">
             <div id="canvas-container" class="w-full h-full bg-slate-950"></div>
 
             <!-- Floating Flight Dashboard Overlay -->
-            <div class="absolute top-5 left-5 pointer-events-none flex flex-col space-y-3">
+            <div class="absolute top-5 left-5 pointer-events-none flex flex-col space-y-3 scale-90 sm:scale-100 origin-top-left z-20">
                 
                 <!-- Mission Telemetry Widget (HUD) -->
                 <div class="glass-panel p-4 rounded-xl border border-slate-700/50 glow-cyan w-64 pointer-events-auto transition-transform">
@@ -351,36 +354,36 @@
                 </div>
 
                 <!-- Simulation Info Message -->
-                <div class="bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg text-xs text-slate-300 max-w-sm">
+                <div class="bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg text-xs text-slate-300 max-w-sm pointer-events-auto hidden sm:block">
                     <p class="font-bold text-slate-200 mb-0.5"><i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i> 시뮬레이터 팁</p>
                     <p class="text-slate-400 text-[11px] leading-relaxed">경로를 생성한 뒤 <strong class="text-cyan-400">비행 시작</strong>을 누르면 드론이 자율 운항하며 녹색 카메라 빔 영역을 지표면에 비추고 사진 촬영(셔터 이펙트)을 진행합니다. 마우스 드래그로 지형을 회전시킬 수 있습니다.</p>
                 </div>
             </div>
 
             <!-- Bottom Mission Controls Bar -->
-            <div class="absolute bottom-5 left-1/2 transform -translate-x-1/2 glass-panel px-6 py-4 rounded-2xl flex items-center space-x-6 z-10 glow-cyan">
+            <div class="absolute bottom-5 left-1/2 transform -translate-x-1/2 glass-panel px-4 sm:px-6 py-3 sm:py-4 rounded-2xl flex flex-col sm:flex-row items-center space-y-3 sm:space-y-0 sm:space-x-6 z-20 glow-cyan pointer-events-auto w-[90%] sm:w-auto">
                 
                 <!-- Main Simulator Actions -->
-                <div class="flex items-center space-x-3 border-r border-slate-800 pr-6">
+                <div class="flex items-center space-x-2 sm:space-x-3 sm:border-r border-slate-800 sm:pr-6 w-full justify-center">
                     <!-- TakeOff / Start Button -->
-                    <button id="btn-takeoff" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg shadow-emerald-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    <button id="btn-takeoff" class="px-3 sm:px-5 py-2 sm:py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center space-x-1.5 sm:space-x-2 shadow-lg shadow-emerald-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-base flex-1 sm:flex-none justify-center">
                         <i class="fa-solid fa-plane-departure"></i>
-                        <span id="txt-takeoff">미션 시작 (Take Off)</span>
+                        <span id="txt-takeoff" class="whitespace-nowrap">미션 시작</span>
                     </button>
                     <!-- Return to Launch (RTL) -->
-                    <button id="btn-rtl" disabled class="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg shadow-amber-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    <button id="btn-rtl" disabled class="px-2 sm:px-4 py-2 sm:py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center space-x-1 sm:space-x-2 shadow-lg shadow-amber-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-base">
                         <i class="fa-solid fa-house-signal"></i>
-                        <span>홈 귀환 (RTL)</span>
+                        <span class="hidden sm:inline">홈 귀환</span>
                     </button>
                     <!-- Emergency Stop -->
-                    <button id="btn-land" disabled class="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg shadow-rose-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                    <button id="btn-land" disabled class="px-2 sm:px-4 py-2 sm:py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl flex items-center space-x-1 sm:space-x-2 shadow-lg shadow-rose-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed text-xs sm:text-base">
                         <i class="fa-solid fa-plane-arrival"></i>
-                        <span>착륙 (Land)</span>
+                        <span class="hidden sm:inline">착륙</span>
                     </button>
                 </div>
 
                 <!-- Camera shutter status light -->
-                <div class="flex items-center space-x-3">
+                <div class="flex items-center space-x-3 hidden sm:flex">
                     <div id="shutter-flash-indicator" class="w-8 h-8 rounded-full border border-slate-700 bg-slate-900 flex items-center justify-center transition-all">
                         <i class="fa-solid fa-camera text-xs text-slate-500" id="shutter-icon"></i>
                     </div>
@@ -391,7 +394,7 @@
                 </div>
 
                 <!-- Ground Control Point (GCP) Injector -->
-                <div class="flex items-center space-x-2 border-l border-slate-800 pl-6">
+                <div class="flex items-center space-x-2 sm:border-l border-slate-800 sm:pl-6 hidden sm:flex">
                     <button id="btn-add-gcp" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-300 border border-slate-700 flex items-center space-x-1.5 transition-colors">
                         <i class="fa-solid fa-location-crosshairs text-cyan-400"></i>
                         <span>GCP 기준점 배치</span>
@@ -401,23 +404,23 @@
             </div>
 
             <!-- View Angle Preset Controller Floating Right-Top -->
-            <div class="absolute right-5 top-5 flex flex-col space-y-2 pointer-events-auto">
-                <button id="btn-cam-top" class="p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1">
-                    <i class="fa-solid fa-border-all"></i> <span>2D 정사 뷰 (Top)</span>
+            <div class="absolute right-3 sm:right-5 top-3 sm:top-5 flex flex-col space-y-2 pointer-events-auto z-20">
+                <button id="btn-cam-top" class="p-2 sm:p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-[10px] sm:text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1" title="2D 정사 뷰 (Top)">
+                    <i class="fa-solid fa-border-all"></i> <span class="hidden sm:inline">2D 정사 뷰</span>
                 </button>
-                <button id="btn-cam-iso" class="p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1">
-                    <i class="fa-solid fa-cubes"></i> <span>3D 입체 뷰 (Iso)</span>
+                <button id="btn-cam-iso" class="p-2 sm:p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-[10px] sm:text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1" title="3D 입체 뷰 (Iso)">
+                    <i class="fa-solid fa-cubes"></i> <span class="hidden sm:inline">3D 입체 뷰</span>
                 </button>
-                <button id="btn-gcp-toggle" class="p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1">
-                    <i class="fa-solid fa-eye-slash"></i> <span>GCP 보기/감추기</span>
+                <button id="btn-gcp-toggle" class="p-2 sm:p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-[10px] sm:text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1 hidden sm:flex" title="GCP 보기/감추기">
+                    <i class="fa-solid fa-eye-slash"></i> <span>GCP 토글</span>
                 </button>
             </div>
 
             <!-- Photo Snap Gallery Sidebar (Hover/Toggle trigger at Bottom-Left of viewport) -->
-            <div class="absolute bottom-28 left-5 max-h-48 w-64 overflow-y-auto glass-panel p-3 rounded-xl border border-slate-800 pointer-events-auto hidden" id="live-photo-gallery">
+            <div class="absolute bottom-32 sm:bottom-28 left-3 sm:left-5 max-h-32 sm:max-h-48 w-48 sm:w-64 overflow-y-auto glass-panel p-2 sm:p-3 rounded-xl border border-slate-800 pointer-events-auto hidden z-20" id="live-photo-gallery">
                 <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-800">
-                    <span class="text-xs font-bold text-slate-400"><i class="fa-solid fa-images text-cyan-400 mr-1.5"></i>취득 영상 모니터</span>
-                    <span class="text-[9px] font-mono text-emerald-400" id="gallery-count">0 photos</span>
+                    <span class="text-[10px] sm:text-xs font-bold text-slate-400"><i class="fa-solid fa-images text-cyan-400 mr-1.5"></i>취득 영상</span>
+                    <span class="text-[8px] sm:text-[9px] font-mono text-emerald-400" id="gallery-count">0 photos</span>
                 </div>
                 <!-- Snap thumbnails list -->
                 <div class="grid grid-cols-4 gap-1.5" id="gallery-snaps">
@@ -470,7 +473,7 @@
                         </div>
                         <div class="p-4 bg-slate-950 rounded-xl border border-slate-800">
                             <h4 class="font-bold text-slate-200 mb-1.5 flex items-center"><i class="fa-solid fa-laptop-code text-cyan-400 mr-2"></i>인터랙티브 UI</h4>
-                            <p class="text-xs text-slate-400">Tailwind CSS와 Web Audio API를 활용하여 셔터 클릭 사운드 피드백 및 모던 글래스모피즘 HUD 측량 패널을 구현했습니다.</p>
+                            <p class="text-xs text-slate-400">Tailwind CSS와 Web Audio API를 활용하여 셔터 클릭 사운 피드백 및 모던 글래스모피즘 HUD 측량 패널을 구현했습니다.</p>
                         </div>
                     </div>
                 </section>
@@ -1190,4 +1193,223 @@
                     
                     // Calc slider/bar progress
                     const progress = (droneState.targetWpIdx / waypoints.length) * 100;
-                    document.getElementById('tel-prog-percent').textContent = `${Math.ro
+                    document.getElementById('tel-prog-percent').textContent = `${Math.round(progress)}%`;
+                    document.getElementById('tel-prog-bar').style.width = `${progress}%`;
+
+                    if (droneState.targetWpIdx >= waypoints.length) {
+                        // Mission complete / landed
+                        setMode("STANDBY");
+                        notifyToast("임무 완료 및 착륙 성공");
+                    }
+                }
+            } else if (droneState.mode === "RTL") {
+                // Return to Launch
+                const homeWp = waypoints[waypoints.length - 1]; // last waypoint is home
+                const currentWp = droneState.currentPos;
+                const distanceToTarget = currentWp.distanceTo(homeWp);
+                const speed = (parseFloat(document.getElementById('slide-speed').value) || 6) * 1.5; // fly back faster
+
+                const targetYaw = Math.atan2(homeWp.x - currentWp.x, homeWp.z - currentWp.z);
+                drone.rotation.y += (targetYaw - drone.rotation.y) * 0.1;
+                
+                if (distanceToTarget > 1.0) {
+                    const step = speed * deltaTime;
+                    currentWp.lerp(homeWp, step / distanceToTarget);
+                    drone.position.copy(currentWp);
+                    cameraFrustumCone.position.copy(drone.position);
+                    
+                    document.getElementById('tel-alt').textContent = `${drone.position.y.toFixed(1)} m`;
+                    document.getElementById('hud-altitude').textContent = `${drone.position.y.toFixed(1)} m`;
+                } else {
+                     setMode("STANDBY");
+                     notifyToast("홈 복귀 및 착륙 완료");
+                }
+            }
+
+            if (controls) controls.update();
+            if (renderer && scene && camera) renderer.render(scene, camera);
+        }
+
+        // --- UI Interactions ---
+
+        function setMode(newMode) {
+            droneState.mode = newMode;
+            const modeLabel = document.getElementById('top-mode');
+            const btnTakeoff = document.getElementById('btn-takeoff');
+            const txtTakeoff = document.getElementById('txt-takeoff');
+            const btnRtl = document.getElementById('btn-rtl');
+            const btnLand = document.getElementById('btn-land');
+
+            modeLabel.textContent = newMode;
+
+            if (newMode === "FLYING") {
+                modeLabel.className = "px-2 py-0.5 bg-emerald-950 text-emerald-400 rounded border border-emerald-800 font-mono text-xs uppercase";
+                btnTakeoff.disabled = true;
+                btnTakeoff.classList.remove('bg-emerald-600', 'hover:bg-emerald-500');
+                btnTakeoff.classList.add('bg-slate-700');
+                txtTakeoff.textContent = "비행 중...";
+                btnRtl.disabled = false;
+                btnLand.disabled = false;
+                cameraFrustumCone.visible = true;
+            } else if (newMode === "STANDBY") {
+                modeLabel.className = "px-2 py-0.5 bg-cyan-950 text-cyan-400 rounded border border-cyan-800 font-mono text-xs uppercase";
+                btnTakeoff.disabled = false;
+                btnTakeoff.classList.add('bg-emerald-600', 'hover:bg-emerald-500');
+                btnTakeoff.classList.remove('bg-slate-700');
+                txtTakeoff.textContent = "미션 시작 (Take Off)";
+                btnRtl.disabled = true;
+                btnLand.disabled = true;
+                cameraFrustumCone.visible = false;
+                droneState.targetWpIdx = 0;
+            } else if (newMode === "RTL") {
+                 modeLabel.className = "px-2 py-0.5 bg-amber-950 text-amber-400 rounded border border-amber-800 font-mono text-xs uppercase";
+                 btnTakeoff.disabled = true;
+                 btnRtl.disabled = true;
+                 btnLand.disabled = false;
+                 cameraFrustumCone.visible = false;
+            }
+        }
+
+        // Setup Event Listeners
+        window.onload = function() {
+            initThree();
+            requestAnimationFrame(animate);
+
+            // Tab Switching
+            const tabPlan = document.getElementById('tab-plan');
+            const tabTelemetry = document.getElementById('tab-telemetry');
+            const panelPlan = document.getElementById('panel-plan');
+            const panelTelemetry = document.getElementById('panel-telemetry');
+
+            tabPlan.addEventListener('click', () => {
+                tabPlan.className = "flex-1 py-3 text-center border-b-2 border-cyan-500 text-cyan-400 bg-slate-900/40";
+                tabTelemetry.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+                panelPlan.classList.remove('hidden');
+                panelTelemetry.classList.add('hidden');
+                panelTelemetry.classList.remove('flex');
+            });
+
+            tabTelemetry.addEventListener('click', () => {
+                tabTelemetry.className = "flex-1 py-3 text-center border-b-2 border-cyan-500 text-cyan-400 bg-slate-900/40";
+                tabPlan.className = "flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200";
+                panelTelemetry.classList.remove('hidden');
+                panelTelemetry.classList.add('flex');
+                panelPlan.classList.add('hidden');
+            });
+
+            // Mobile Sidebar Toggle
+            const btnToggleSidebar = document.getElementById('btn-toggle-sidebar');
+            const sidebarPanel = document.getElementById('sidebar-panel');
+            let sidebarOpen = false;
+
+            btnToggleSidebar.addEventListener('click', () => {
+                sidebarOpen = !sidebarOpen;
+                if(sidebarOpen) {
+                    sidebarPanel.classList.remove('hidden');
+                    sidebarPanel.classList.add('flex');
+                } else {
+                    sidebarPanel.classList.add('hidden');
+                    sidebarPanel.classList.remove('flex');
+                }
+            });
+
+            // Input Syncs
+            const inputs = ['input-width', 'input-height', 'slide-altitude', 'slide-speed', 'slide-overlap-front', 'slide-overlap-side'];
+            inputs.forEach(id => {
+                document.getElementById(id).addEventListener('input', (e) => {
+                    // Update labels
+                    if (id === 'slide-altitude') document.getElementById('val-altitude').textContent = `${e.target.value} m`;
+                    if (id === 'slide-speed') document.getElementById('val-speed').textContent = `${e.target.value} m/s`;
+                    if (id === 'slide-overlap-front') document.getElementById('val-overlap-front').textContent = `${e.target.value}%`;
+                    if (id === 'slide-overlap-side') document.getElementById('val-overlap-side').textContent = `${e.target.value}%`;
+                });
+            });
+
+            // Action Buttons
+            document.getElementById('btn-generate-path').addEventListener('click', () => {
+                generateDefaultPath();
+                notifyToast("새로운 비행 경로가 생성되었습니다.");
+            });
+
+            document.getElementById('btn-takeoff').addEventListener('click', () => {
+                if (waypoints.length > 0) {
+                     // Clear old ground captures
+                    while(groundCapturesGroup.children.length > 0){ 
+                        groundCapturesGroup.remove(groundCapturesGroup.children[0]); 
+                    }
+                    droneState.photosTaken = 0;
+                    document.getElementById('gallery-snaps').innerHTML = ''; // clear gallery
+                    document.getElementById('gallery-count').textContent = '0 photos';
+                    document.getElementById('live-photo-gallery').classList.add('hidden');
+                    
+                    setMode("FLYING");
+                    droneState.lastTriggerTime = performance.now() / 1000;
+                    notifyToast("이륙 완료. 자율 매핑 비행을 시작합니다.");
+                } else {
+                    notifyToast("비행 경로를 먼저 생성하세요.");
+                }
+            });
+
+            document.getElementById('btn-rtl').addEventListener('click', () => {
+                 setMode("RTL");
+                 notifyToast("홈 귀환(RTL) 모드 활성화");
+            });
+
+            document.getElementById('btn-land').addEventListener('click', () => {
+                 setMode("STANDBY");
+                 notifyToast("비상 착륙 완료");
+            });
+
+            document.getElementById('btn-add-gcp').addEventListener('click', () => {
+                 addGcpAtRandom();
+            });
+
+            // Camera Views
+            document.getElementById('btn-cam-top').addEventListener('click', () => {
+                // Animate camera to top down
+                camera.position.set(0, 300, 0);
+                controls.target.set(0,0,0);
+                controls.update();
+            });
+
+            document.getElementById('btn-cam-iso').addEventListener('click', () => {
+                camera.position.set(130, 110, 130);
+                controls.target.set(0,0,0);
+                controls.update();
+            });
+
+            document.getElementById('btn-gcp-toggle').addEventListener('click', () => {
+                showGCP = !showGCP;
+                gcpMarkersGroup.visible = showGCP;
+            });
+
+            // Audio Toggle
+            const btnSound = document.getElementById('btn-sound');
+            btnSound.addEventListener('click', () => {
+                soundEnabled = !soundEnabled;
+                btnSound.innerHTML = soundEnabled ? '<i class="fa-solid fa-volume-high"></i>' : '<i class="fa-solid fa-volume-xmark"></i>';
+                btnSound.className = soundEnabled ? "p-2 bg-slate-800 hover:bg-slate-700 rounded-md text-slate-300 transition-colors" : "p-2 bg-slate-900 rounded-md text-slate-500 border border-slate-800";
+            });
+
+            // Modal Handlers
+            const modal = document.getElementById('guide-modal');
+            const btnGuide = document.getElementById('btn-guide-modal');
+            const close1 = document.getElementById('btn-close-modal');
+            const close2 = document.getElementById('btn-close-modal-bottom');
+
+            btnGuide.addEventListener('click', () => modal.classList.remove('hidden'));
+            close1.addEventListener('click', () => modal.classList.add('hidden'));
+            close2.addEventListener('click', () => modal.classList.add('hidden'));
+        };
+
+        function onWindowResize() {
+            if (camera && renderer) {
+                const container = document.getElementById('canvas-container');
+                camera.aspect = container.clientWidth / container.clientHeight;
+                camera.updateProjectionMatrix();
+                renderer.setSize(container.clientWidth, container.clientHeight);
+            }
+        }
+    </script>
+</body>
+</html>
