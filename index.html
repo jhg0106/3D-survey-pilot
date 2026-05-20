@@ -1,0 +1,1193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Survey Pilot & Flight Planning Simulator</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Three.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <!-- OrbitControls -->
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <!-- Google Fonts (Inter & Noto Sans KR) -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Noto+Sans+KR:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!-- FontAwesome for Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <style>
+        body {
+            font-family: 'Inter', 'Noto Sans KR', sans-serif;
+        }
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #1e293b;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #475569;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #64748b;
+        }
+        /* Glassmorphism utility */
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.75);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        /* Glowing effects */
+        .glow-cyan {
+            box-shadow: 0 0 15px rgba(6, 182, 212, 0.4);
+        }
+        .glow-green {
+            box-shadow: 0 0 15px rgba(16, 185, 129, 0.4);
+        }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 overflow-hidden h-screen flex flex-col">
+
+    <!-- Top Navigation Header -->
+    <header class="glass-panel h-16 px-6 flex items-center justify-between border-b border-slate-800 z-10 flex-shrink-0">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-cyan-500 to-blue-600 p-2 rounded-lg text-white">
+                <i class="fa-solid fa-drone fa-lg"></i>
+            </div>
+            <div>
+                <h1 class="text-lg font-bold tracking-tight bg-gradient-to-r from-cyan-400 to-blue-500 bg-clip-text text-transparent">
+                    3D SURVEY PILOT SIMULATOR
+                </h1>
+                <p class="text-[10px] text-slate-400 font-mono">DRONE PHOTOGRAMMETRY FLIGHT PLANNER v1.2.0</p>
+            </div>
+        </div>
+        
+        <!-- Status Indicator Bar -->
+        <div class="hidden md:flex items-center space-x-6 text-sm">
+            <div class="flex items-center space-x-2">
+                <span class="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                <span class="text-slate-300 font-medium">GPS: Locked (18 Sats)</span>
+            </div>
+            <div class="flex items-center space-x-2">
+                <i class="fa-solid fa-battery-three-quarters text-emerald-400"></i>
+                <span class="text-slate-300 font-mono" id="top-battery">98%</span>
+            </div>
+            <div class="flex items-center space-x-2 border-l border-slate-800 pl-4">
+                <span class="text-slate-400">Mode:</span>
+                <span class="px-2 py-0.5 bg-cyan-950 text-cyan-400 rounded border border-cyan-800 font-mono text-xs uppercase" id="top-mode">STANDBY</span>
+            </div>
+        </div>
+        
+        <!-- Quick Action Buttons -->
+        <div class="flex items-center space-x-2">
+            <button id="btn-guide-modal" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md text-xs font-medium flex items-center space-x-1.5 transition-colors border border-slate-700">
+                <i class="fa-solid fa-cloud-arrow-up"></i>
+                <span>개발 & 배포 안내</span>
+            </button>
+            <button id="btn-sound" class="p-2 bg-slate-800 hover:bg-slate-700 rounded-md text-slate-300 transition-colors">
+                <i class="fa-solid fa-volume-high"></i>
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Interactive Dashboard Container -->
+    <div class="flex flex-1 overflow-hidden relative">
+        
+        <!-- Left Sidebar: Flight Planning Configurator -->
+        <aside class="w-80 glass-panel border-r border-slate-800 flex flex-col h-full z-10 overflow-y-auto">
+            
+            <!-- Tab Selection -->
+            <div class="flex border-b border-slate-800 text-xs font-semibold">
+                <button id="tab-plan" class="flex-1 py-3 text-center border-b-2 border-cyan-500 text-cyan-400 bg-slate-900/40">
+                    <i class="fa-solid fa-sliders mr-1.5"></i>비행 계획 (Planner)
+                </button>
+                <button id="tab-telemetry" class="flex-1 py-3 text-center border-b-2 border-transparent text-slate-400 hover:text-slate-200">
+                    <i class="fa-solid fa-chart-line mr-1.5"></i>실시간 계기 (Telemetry)
+                </button>
+            </div>
+
+            <!-- Tab 1 CONTENT: Configurator Inputs -->
+            <div id="panel-plan" class="p-5 space-y-5">
+                
+                <!-- Section: Mission Bounds -->
+                <div class="space-y-3">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">1. 측량 영역 설정</h3>
+                        <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 font-mono">Area Config</span>
+                    </div>
+                    
+                    <!-- Width/Height Inputs -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">가로 폭 (W)</label>
+                            <div class="relative">
+                                <input type="number" id="input-width" value="120" min="50" max="250" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-sm font-mono text-center text-cyan-400 focus:outline-none focus:border-cyan-500">
+                                <span class="absolute right-2 top-2 text-[10px] text-slate-500">m</span>
+                            </div>
+                        </div>
+                        <div>
+                            <label class="block text-xs text-slate-400 mb-1">세로 폭 (H)</label>
+                            <div class="relative">
+                                <input type="number" id="input-height" value="120" min="50" max="250" class="w-full bg-slate-900 border border-slate-700 rounded p-1.5 text-sm font-mono text-center text-cyan-400 focus:outline-none focus:border-cyan-500">
+                                <span class="absolute right-2 top-2 text-[10px] text-slate-500">m</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section: Drone Flight Parameters -->
+                <div class="space-y-4 border-t border-slate-800 pt-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">2. 비행 파라미터</h3>
+                        <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-slate-400 font-mono">Parameters</span>
+                    </div>
+
+                    <!-- Altitude Slider -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-xs font-medium">
+                            <span class="text-slate-300">비행 고도 (Altitude)</span>
+                            <span class="text-cyan-400 font-mono" id="val-altitude">60 m</span>
+                        </div>
+                        <input type="range" id="slide-altitude" min="30" max="120" value="60" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[9px] text-slate-500">
+                            <span>30m (초고정밀)</span>
+                            <span>120m (법정 한계)</span>
+                        </div>
+                    </div>
+
+                    <!-- Speed Slider -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-xs font-medium">
+                            <span class="text-slate-300">비행 속도 (Speed)</span>
+                            <span class="text-cyan-400 font-mono" id="val-speed">6 m/s</span>
+                        </div>
+                        <input type="range" id="slide-speed" min="2" max="12" value="6" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                        <div class="flex justify-between text-[9px] text-slate-500">
+                            <span>2 m/s</span>
+                            <span>12 m/s</span>
+                        </div>
+                    </div>
+
+                    <!-- Frontal Overlap Slider -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-xs font-medium">
+                            <span class="text-slate-300">종중첩도 (Front Overlap)</span>
+                            <span class="text-cyan-400 font-mono" id="val-overlap-front">80%</span>
+                        </div>
+                        <input type="range" id="slide-overlap-front" min="50" max="90" value="80" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+
+                    <!-- Side Overlap Slider -->
+                    <div class="space-y-1.5">
+                        <div class="flex justify-between text-xs font-medium">
+                            <span class="text-slate-300">횡중첩도 (Side Overlap)</span>
+                            <span class="text-cyan-400 font-mono" id="val-overlap-side">70%</span>
+                        </div>
+                        <input type="range" id="slide-overlap-side" min="40" max="85" value="70" class="w-full accent-cyan-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+                    </div>
+                </div>
+
+                <!-- Section: Camera & GSD -->
+                <div class="space-y-3 border-t border-slate-800 pt-4">
+                    <div class="flex items-center justify-between">
+                        <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">3. 카메라 및 센서 정보</h3>
+                        <span class="text-[10px] bg-slate-800 px-1.5 py-0.5 rounded text-emerald-400 font-mono">Sensor Spec</span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-2 text-xs bg-slate-900/60 p-3 rounded-lg border border-slate-800/80">
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase">지상해상도(GSD)</span>
+                            <span class="font-bold text-emerald-400 font-mono" id="calc-gsd">1.56 cm/px</span>
+                        </div>
+                        <div>
+                            <span class="text-slate-400 block text-[10px] uppercase">촬영 간격(Intv)</span>
+                            <span class="font-bold text-slate-200 font-mono" id="calc-trigger-time">2.4 초</span>
+                        </div>
+                        <div class="col-span-2 pt-2 border-t border-slate-800 mt-2 flex justify-between items-center">
+                            <span class="text-slate-400">카메라 앵글:</span>
+                            <select id="camera-angle-select" class="bg-slate-950 text-xs border border-slate-700 rounded px-1.5 py-0.5 text-slate-300 focus:outline-none focus:border-cyan-500">
+                                <option value="90">연직 촬영 (Nadir 90°)</option>
+                                <option value="45">경사 촬영 (Oblique 45°)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Action Button: Generate Path -->
+                <button id="btn-generate-path" class="w-full py-3 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-semibold rounded-lg shadow-lg shadow-cyan-950/40 transition-all flex items-center justify-center space-x-2">
+                    <i class="fa-solid fa-route"></i>
+                    <span>경로 생성 및 동기화</span>
+                </button>
+            </div>
+
+            <!-- Tab 2 CONTENT: Live Telemetry Diagnostics -->
+            <div id="panel-telemetry" class="p-5 space-y-5 hidden flex-1 flex flex-col justify-between">
+                <div class="space-y-4">
+                    <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">비행 텔레메트리 (Live)</h3>
+                    
+                    <!-- Digital Gauges Grid -->
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">ALTITUDE (고도)</span>
+                            <span class="text-lg font-bold text-cyan-400 font-mono" id="tel-alt">0.0 m</span>
+                        </div>
+                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">SPEED (대지속도)</span>
+                            <span class="text-lg font-bold text-slate-200 font-mono" id="tel-speed">0.0 m/s</span>
+                        </div>
+                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">COORDINATE X</span>
+                            <span class="text-sm font-bold text-slate-300 font-mono" id="tel-x">0.00</span>
+                        </div>
+                        <div class="bg-slate-900 p-3 rounded-lg border border-slate-800">
+                            <span class="text-[10px] text-slate-500 block">COORDINATE Y</span>
+                            <span class="text-sm font-bold text-slate-300 font-mono" id="tel-y">0.00</span>
+                        </div>
+                    </div>
+
+                    <!-- Progress Statistics -->
+                    <div class="bg-slate-900/40 p-3 rounded-lg border border-slate-800 space-y-3">
+                        <div>
+                            <div class="flex justify-between text-xs text-slate-400 mb-1">
+                                <span>비행 수행률</span>
+                                <span class="text-cyan-400 font-mono" id="tel-prog-percent">0%</span>
+                            </div>
+                            <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
+                                <div id="tel-prog-bar" class="bg-gradient-to-r from-cyan-500 to-emerald-500 h-full w-0 transition-all duration-300"></div>
+                            </div>
+                        </div>
+
+                        <div class="grid grid-cols-2 gap-2 text-xs border-t border-slate-800 pt-2 mt-2">
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">웨이포인트:</span>
+                                <span class="font-bold text-slate-300 font-mono" id="tel-wp-idx">0 / 0</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-slate-500">촬영 매수:</span>
+                                <span class="font-bold text-emerald-400 font-mono" id="tel-photos">0장</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Coverage Estimator -->
+                    <div class="bg-emerald-950/20 border border-emerald-900/50 p-3 rounded-lg">
+                        <h4 class="text-xs font-semibold text-emerald-400 mb-2 flex items-center">
+                            <i class="fa-solid fa-circle-check mr-1.5"></i> 측량 결과 예상치
+                        </h4>
+                        <div class="text-xs space-y-1.5 text-slate-300 font-mono">
+                            <div class="flex justify-between">
+                                <span>예상 취득 정사지도 면적:</span>
+                                <span class="font-bold" id="tel-est-area">14,400 m²</span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span>매핑 완료 시간:</span>
+                                <span class="font-bold" id="tel-est-time">02분 15초</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Flight Controls inside Sidebar -->
+                <div class="border-t border-slate-800 pt-4 space-y-2">
+                    <span class="text-[10px] font-bold text-slate-500 tracking-wider uppercase block">수동 제어(Manual Flight Overlay)</span>
+                    <div class="grid grid-cols-2 gap-2 text-center text-xs text-slate-400">
+                        <div class="p-1 bg-slate-900 rounded border border-slate-800">W/S : 고도 조절</div>
+                        <div class="p-1 bg-slate-900 rounded border border-slate-800">A/D : 좌우 회전</div>
+                        <div class="col-span-2 p-1 bg-slate-900 rounded border border-slate-800">방향키 : 수평 이동 (Manual)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer Logo / Info -->
+            <div class="mt-auto border-t border-slate-800 p-4 bg-slate-950/80 flex items-center justify-between text-[11px] text-slate-500">
+                <span>South Korea Survey Standard</span>
+                <span class="font-mono">K-Geoid18 Compatible</span>
+            </div>
+        </aside>
+
+        <!-- Center / Right: Main 3D Simulation Canvas -->
+        <main class="flex-1 h-full relative">
+            <div id="canvas-container" class="w-full h-full bg-slate-950"></div>
+
+            <!-- Floating Flight Dashboard Overlay -->
+            <div class="absolute top-5 left-5 pointer-events-none flex flex-col space-y-3">
+                
+                <!-- Mission Telemetry Widget (HUD) -->
+                <div class="glass-panel p-4 rounded-xl border border-slate-700/50 glow-cyan w-64 pointer-events-auto transition-transform">
+                    <div class="flex items-center justify-between border-b border-slate-800 pb-2 mb-2">
+                        <div class="flex items-center space-x-1.5">
+                            <div class="w-2 h-2 rounded-full bg-cyan-400 animate-ping"></div>
+                            <span class="text-xs font-bold tracking-wider text-cyan-400">FALCON-4 RTK</span>
+                        </div>
+                        <span class="text-[10px] font-mono bg-slate-800 text-slate-400 px-1.5 py-0.5 rounded">AUTO MISSION</span>
+                    </div>
+
+                    <div class="space-y-2 text-slate-200">
+                        <!-- Compass / Heading Info -->
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-400 flex items-center"><i class="fa-solid fa-compass mr-1.5 text-slate-500"></i>드론 방향</span>
+                            <span class="font-bold font-mono text-slate-100" id="hud-yaw">0° (N)</span>
+                        </div>
+                        <!-- Altitude AGL -->
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-400 flex items-center"><i class="fa-solid fa-arrows-up-down mr-1.5 text-slate-500"></i>AGL 고도</span>
+                            <span class="font-bold font-mono text-cyan-400" id="hud-altitude">0.0 m</span>
+                        </div>
+                        <!-- Photo Counts -->
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-400 flex items-center"><i class="fa-solid fa-camera mr-1.5 text-slate-500"></i>촬영 장수</span>
+                            <span class="font-bold font-mono text-emerald-400" id="hud-photos">0 / --</span>
+                        </div>
+                        <!-- Current Speed -->
+                        <div class="flex justify-between items-center text-xs">
+                            <span class="text-slate-400 flex items-center"><i class="fa-solid fa-gauge mr-1.5 text-slate-500"></i>비행 속도</span>
+                            <span class="font-bold font-mono text-amber-400" id="hud-speed">0.0 m/s</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Simulation Info Message -->
+                <div class="bg-slate-900/90 border border-slate-800 px-3 py-2 rounded-lg text-xs text-slate-300 max-w-sm">
+                    <p class="font-bold text-slate-200 mb-0.5"><i class="fa-solid fa-circle-info text-cyan-400 mr-1"></i> 시뮬레이터 팁</p>
+                    <p class="text-slate-400 text-[11px] leading-relaxed">경로를 생성한 뒤 <strong class="text-cyan-400">비행 시작</strong>을 누르면 드론이 자율 운항하며 녹색 카메라 빔 영역을 지표면에 비추고 사진 촬영(셔터 이펙트)을 진행합니다. 마우스 드래그로 지형을 회전시킬 수 있습니다.</p>
+                </div>
+            </div>
+
+            <!-- Bottom Mission Controls Bar -->
+            <div class="absolute bottom-5 left-1/2 transform -translate-x-1/2 glass-panel px-6 py-4 rounded-2xl flex items-center space-x-6 z-10 glow-cyan">
+                
+                <!-- Main Simulator Actions -->
+                <div class="flex items-center space-x-3 border-r border-slate-800 pr-6">
+                    <!-- TakeOff / Start Button -->
+                    <button id="btn-takeoff" class="px-5 py-2.5 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg shadow-emerald-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-plane-departure"></i>
+                        <span id="txt-takeoff">미션 시작 (Take Off)</span>
+                    </button>
+                    <!-- Return to Launch (RTL) -->
+                    <button id="btn-rtl" disabled class="px-4 py-2.5 bg-amber-600 hover:bg-amber-500 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg shadow-amber-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-house-signal"></i>
+                        <span>홈 귀환 (RTL)</span>
+                    </button>
+                    <!-- Emergency Stop -->
+                    <button id="btn-land" disabled class="px-4 py-2.5 bg-rose-600 hover:bg-rose-500 text-white font-bold rounded-xl flex items-center space-x-2 shadow-lg shadow-rose-950/40 transition-all disabled:opacity-40 disabled:cursor-not-allowed">
+                        <i class="fa-solid fa-plane-arrival"></i>
+                        <span>착륙 (Land)</span>
+                    </button>
+                </div>
+
+                <!-- Camera shutter status light -->
+                <div class="flex items-center space-x-3">
+                    <div id="shutter-flash-indicator" class="w-8 h-8 rounded-full border border-slate-700 bg-slate-900 flex items-center justify-center transition-all">
+                        <i class="fa-solid fa-camera text-xs text-slate-500" id="shutter-icon"></i>
+                    </div>
+                    <div>
+                        <span class="text-[10px] text-slate-500 block leading-none font-mono">CAMERA SENSOR</span>
+                        <span class="text-xs font-bold font-mono text-slate-300" id="shutter-status">SHUTTER READY</span>
+                    </div>
+                </div>
+
+                <!-- Ground Control Point (GCP) Injector -->
+                <div class="flex items-center space-x-2 border-l border-slate-800 pl-6">
+                    <button id="btn-add-gcp" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-xs font-medium rounded-lg text-slate-300 border border-slate-700 flex items-center space-x-1.5 transition-colors">
+                        <i class="fa-solid fa-location-crosshairs text-cyan-400"></i>
+                        <span>GCP 기준점 배치</span>
+                    </button>
+                    <span class="text-[10px] text-slate-400 max-w-[100px] leading-tight">GCP 배치 시 모델 정밀도가 극대화됩니다.</span>
+                </div>
+            </div>
+
+            <!-- View Angle Preset Controller Floating Right-Top -->
+            <div class="absolute right-5 top-5 flex flex-col space-y-2 pointer-events-auto">
+                <button id="btn-cam-top" class="p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-border-all"></i> <span>2D 정사 뷰 (Top)</span>
+                </button>
+                <button id="btn-cam-iso" class="p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-cubes"></i> <span>3D 입체 뷰 (Iso)</span>
+                </button>
+                <button id="btn-gcp-toggle" class="p-2.5 bg-slate-900/90 hover:bg-slate-800 rounded-lg text-xs text-slate-300 font-semibold border border-slate-800 shadow flex items-center justify-center space-x-1">
+                    <i class="fa-solid fa-eye-slash"></i> <span>GCP 보기/감추기</span>
+                </button>
+            </div>
+
+            <!-- Photo Snap Gallery Sidebar (Hover/Toggle trigger at Bottom-Left of viewport) -->
+            <div class="absolute bottom-28 left-5 max-h-48 w-64 overflow-y-auto glass-panel p-3 rounded-xl border border-slate-800 pointer-events-auto hidden" id="live-photo-gallery">
+                <div class="flex items-center justify-between mb-2 pb-1 border-b border-slate-800">
+                    <span class="text-xs font-bold text-slate-400"><i class="fa-solid fa-images text-cyan-400 mr-1.5"></i>취득 영상 모니터</span>
+                    <span class="text-[9px] font-mono text-emerald-400" id="gallery-count">0 photos</span>
+                </div>
+                <!-- Snap thumbnails list -->
+                <div class="grid grid-cols-4 gap-1.5" id="gallery-snaps">
+                    <!-- Dynamic loaded thumbs -->
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- BUILD & DEPLOY GUIDE MODAL PANEL -->
+    <div id="guide-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
+        <div class="bg-slate-900 rounded-2xl border border-slate-800 w-full max-w-4xl max-h-[90vh] flex flex-col overflow-hidden shadow-2xl">
+            
+            <!-- Modal Header -->
+            <div class="p-6 border-b border-slate-800 flex items-center justify-between bg-slate-950">
+                <div class="flex items-center space-x-3">
+                    <div class="bg-gradient-to-tr from-cyan-500 to-blue-500 p-2.5 rounded-lg text-white">
+                        <i class="fa-solid fa-rocket"></i>
+                    </div>
+                    <div>
+                        <h2 class="text-xl font-bold text-white">3D Survey Pilot 시뮬레이터 제작 및 배포 가이드</h2>
+                        <p class="text-xs text-slate-400">자체 드론 매핑/비행 측량 소프트웨어를 구축하고 배포하는 실전 프로세스</p>
+                    </div>
+                </div>
+                <button id="btn-close-modal" class="p-2 text-slate-400 hover:text-white rounded-lg hover:bg-slate-800 transition-colors">
+                    <i class="fa-solid fa-xmark text-lg"></i>
+                </button>
+            </div>
+
+            <!-- Modal Content (Scrollable Tabs) -->
+            <div class="flex-1 overflow-y-auto p-6 space-y-6 text-sm leading-relaxed text-slate-300">
+                
+                <!-- 1. Technical Spec Roadmap -->
+                <section class="space-y-3">
+                    <h3 class="text-base font-bold text-cyan-400 flex items-center">
+                        <span class="w-6 h-6 rounded-full bg-cyan-950 text-cyan-400 text-xs flex items-center justify-center font-bold mr-2">1</span>
+                        드론 시뮬레이터 앱 제작 흐름 (Stack & Architecture)
+                    </h3>
+                    <p class="text-slate-400">
+                        본 체험형 시뮬레이터는 웹 표준 기술과 드론 매핑 알고리즘이 융합된 고성능 애플리케이션입니다. 다음 핵심 구성 요소로 설계되었습니다:
+                    </p>
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-2">
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800">
+                            <h4 class="font-bold text-slate-200 mb-1.5 flex items-center"><i class="fa-solid fa-cube text-cyan-400 mr-2"></i>3D 렌더링 엔진</h4>
+                            <p class="text-xs text-slate-400">Three.js를 사용하여 고성능 웹 지형, 드론 메쉬, 카메라 절두체(Frustum), 웨이포인트(GCP)를 정밀하게 실시간 시각화합니다.</p>
+                        </div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800">
+                            <h4 class="font-bold text-slate-200 mb-1.5 flex items-center"><i class="fa-solid fa-calculator text-cyan-400 mr-2"></i>측량 경로 계산 알고리즘</h4>
+                            <p class="text-xs text-slate-400">비행 고도 및 중첩도(Front/Side Overlap)를 기반으로 GSD(Ground Sampling Distance)를 계산하고, Lawnmower(지구전체 격자) 자율비행 경로를 동적 자동 연산합니다.</p>
+                        </div>
+                        <div class="p-4 bg-slate-950 rounded-xl border border-slate-800">
+                            <h4 class="font-bold text-slate-200 mb-1.5 flex items-center"><i class="fa-solid fa-laptop-code text-cyan-400 mr-2"></i>인터랙티브 UI</h4>
+                            <p class="text-xs text-slate-400">Tailwind CSS와 Web Audio API를 활용하여 셔터 클릭 사운드 피드백 및 모던 글래스모피즘 HUD 측량 패널을 구현했습니다.</p>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 2. Self Build Source Guide -->
+                <section class="space-y-3 border-t border-slate-800/80 pt-5">
+                    <h3 class="text-base font-bold text-cyan-400 flex items-center">
+                        <span class="w-6 h-6 rounded-full bg-cyan-950 text-cyan-400 text-xs flex items-center justify-center font-bold mr-2">2</span>
+                        직접 React / Vue / Plain Web App으로 마이그레이션 방법
+                    </h3>
+                    <p class="text-slate-400">
+                        본 단일 파일 HTML 버전을 React 혹은 기업형 웹 솔루션으로 업그레이드할 때 적합한 폴더 구조와 핵심 모듈입니다:
+                    </p>
+                    <div class="bg-slate-950 p-4 rounded-xl border border-slate-800 font-mono text-xs text-slate-300">
+                        <div class="text-emerald-400">// 권장하는 모던 React 구조 (React-Three-Fiber 활용 가능)</div>
+                        my-survey-app/<br>
+                        ├── public/<br>
+                        │   └── models/               <span class="text-slate-500"># GLTF/GLB 드론 및 고해상도 지형 에셋</span><br>
+                        ├── src/<br>
+                        │   ├── components/<br>
+                        │   │   ├── MapCanvas.jsx     <span class="text-slate-500"># Three.js 3D 지형 렌더링 모듈</span><br>
+                        │   │   ├── TelemetryHUD.jsx  <span class="text-slate-500"># 비행 상태 및 GSD 연산 계기</span><br>
+                        │   │   └── FlightPlanner.jsx <span class="text-slate-500"># 중첩도 조절 및 고도 슬라이더 패널</span><br>
+                        │   ├── utils/<br>
+                        │   │   └── pathGenerator.js  <span class="text-slate-500"># 실시간 위경도/GCP 계산 및 웨이포인트 연산 알고리즘</span><br>
+                        │   ├── App.jsx<br>
+                        │   └── main.jsx<br>
+                        └── package.json
+                    </div>
+                </section>
+
+                <!-- 3. Deployment Instructions Step by Step -->
+                <section class="space-y-4 border-t border-slate-800/80 pt-5">
+                    <h3 class="text-base font-bold text-cyan-400 flex items-center">
+                        <span class="w-6 h-6 rounded-full bg-cyan-950 text-cyan-400 text-xs flex items-center justify-center font-bold mr-2">3</span>
+                        초간단 무료 웹 배포 (Deployment) 프로세스
+                    </h3>
+                    <p class="text-slate-400">
+                        구현 완료한 시뮬레이터를 전 세계 어디서나 모바일/PC로 접속할 수 있도록 서버 비용 없이 배포하는 가장 대표적인 방법 3가지를 설명합니다:
+                    </p>
+                    
+                    <div class="space-y-3">
+                        <!-- Option A: GitHub Pages -->
+                        <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                            <h4 class="font-bold text-white flex items-center text-sm">
+                                <i class="fa-brands fa-github mr-2 text-slate-200 text-lg"></i>
+                                방법 1. GitHub Pages (완전 무료, 정적 웹에 초간단 추천)
+                            </h4>
+                            <ol class="list-decimal list-inside text-xs text-slate-400 space-y-1 mt-2 font-sans pl-1">
+                                <li>GitHub 계정을 생성하고 새 리포지토리(Repository)를 만듭니다 (예: <code class="text-slate-200">drone-survey-sim</code>).</li>
+                                <li>위 시뮬레이터 코드를 복사하여 <code class="text-cyan-400">index.html</code> 파일로 저장한 후 리포지토리에 푸시(Push) 또는 업로드합니다.</li>
+                                <li>리포지토리 설정 [Settings] → [Pages] 메뉴로 들어갑니다.</li>
+                                <li>Build and deployment 소스를 <code class="text-slate-200">Deploy from a branch</code>로 지정하고, Branch를 <code class="text-slate-200">main</code> (혹은 master) 및 <code class="text-slate-200">/ (root)</code>폴더로 선택 후 Save를 클릭합니다.</li>
+                                <li>1~2분 대기하면 <code class="text-emerald-400">https://{본인ID}.github.io/drone-survey-sim/</code> 주소로 즉시 전세계 라이브 배포 완료!</li>
+                            </ol>
+                        </div>
+
+                        <!-- Option B: Vercel / Netlify -->
+                        <div class="bg-slate-950/60 p-4 rounded-xl border border-slate-800/80">
+                            <h4 class="font-bold text-white flex items-center text-sm">
+                                <i class="fa-solid fa-triangle-exclamation mr-2 text-amber-500 text-lg"></i>
+                                방법 2. Vercel 배포 (가장 빠르고 트렌디하며 React 프로젝트에 최적)
+                            </h4>
+                            <ol class="list-decimal list-inside text-xs text-slate-400 space-y-1 mt-2 font-sans pl-1">
+                                <li><a href="https://vercel.com" target="_blank" class="text-cyan-400 underline">Vercel 사이트</a>에 가입한 후 [Add New Project]를 선택합니다.</li>
+                                <li>본인의 GitHub 계정을 임포트(Import)하여 리포지토리와 연동합니다.</li>
+                                <li>프로젝트 빌드 설정은 기본값으로 두고 [Deploy] 버튼을 원클릭합니다.</li>
+                                <li>자동으로 가상 CDN 서버에 빌드 업로드되며 약 30초 안에 커스텀 도메인(Vercel 무료 하위도메인)이 주어집니다.</li>
+                            </ol>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- Professional Drone Mapping Context Info -->
+                <div class="bg-gradient-to-tr from-cyan-950/40 to-blue-950/40 p-5 rounded-2xl border border-cyan-900/40 space-y-2">
+                    <h4 class="text-xs font-bold text-cyan-400 uppercase tracking-wider">💡 산업 현장 3D Surveying 소프트웨어 연동 정보</h4>
+                    <p class="text-xs text-slate-300">
+                        실제 상용화된 3D Survey Pilot 솔루션들은 위 시뮬레이터에서 계산되는 것과 동일하게 종/횡 중첩도에 기초한 셔터 자동 작동 알고리즘을 사용합니다. 생성된 정밀 정사영상을 Pix4D, DJI Terra, ContextCapture 등에 주입하면 포인트 클라우드와 매쉬 지형으로 합성됩니다.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Modal Footer -->
+            <div class="p-4 border-t border-slate-800 flex justify-end bg-slate-950">
+                <button id="btn-close-modal-bottom" class="px-5 py-2 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white font-bold text-sm rounded-lg transition-colors">
+                    시뮬레이터로 돌아가기
+                </button>
+            </div>
+
+        </div>
+    </div>
+
+    <script>
+        // Web Audio Synthesizer for Camera Shutter Click Sounds
+        let audioCtx = null;
+        let soundEnabled = true;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+        }
+
+        function playShutterSound() {
+            if (!soundEnabled) return;
+            initAudio();
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+            
+            // Generate a rapid click/snapping sound using synth oscillators
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            
+            osc.type = 'triangle';
+            osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(1500, audioCtx.currentTime + 0.05);
+            osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + 0.15);
+            
+            gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.18);
+            
+            osc.start();
+            osc.stop(audioCtx.currentTime + 0.2);
+
+            // Trigger visual feedback flash on shutter status element
+            const flashInd = document.getElementById('shutter-flash-indicator');
+            const icon = document.getElementById('shutter-icon');
+            const text = document.getElementById('shutter-status');
+            
+            flashInd.classList.remove('bg-slate-900', 'border-slate-700');
+            flashInd.classList.add('bg-white', 'border-white', 'scale-110');
+            icon.classList.remove('text-slate-500');
+            icon.classList.add('text-slate-900');
+            text.textContent = "PHOTO TAKEN!";
+            text.classList.remove('text-slate-300');
+            text.classList.add('text-emerald-400');
+
+            setTimeout(() => {
+                flashInd.classList.remove('bg-white', 'border-white', 'scale-110');
+                flashInd.classList.add('bg-slate-900', 'border-slate-700');
+                icon.classList.remove('text-slate-900');
+                icon.classList.add('text-slate-500');
+                text.textContent = "SHUTTER READY";
+                text.classList.remove('text-emerald-400');
+                text.classList.add('text-slate-300');
+            }, 180);
+        }
+
+        // ThreeJS variables
+        let scene, camera, renderer, controls;
+        let terrain, drone, waypointsLine;
+        let waypoints = [];
+        let waypointMarkersGroup = new THREE.Group();
+        let terrainGeom, terrainMat;
+        let groundCapturesGroup = new THREE.Group(); // Keeps dynamic footprints drawn on ground
+        let cameraFrustumCone; // Projector visuals
+        let gcpMarkersGroup = new THREE.Group();
+        let showGCP = true;
+
+        // Drone State Variables
+        const droneState = {
+            currentPos: new THREE.Vector3(0, 0, 0),
+            altitude: 60, // AGL
+            speed: 6, // m/s equivalent
+            mode: "STANDBY", // "STANDBY", "FLYING", "LANDING", "RTL"
+            targetWpIdx: 0,
+            flightProgress: 0,
+            photosTaken: 0,
+            yaw: 0,
+            battery: 100,
+            maxBattery: 100,
+            triggerInterval: 2.5, // seconds per shutter trigger
+            lastTriggerTime: 0,
+            lastFrameTime: 0
+        };
+
+        // Mission Waypoints
+        let missionRoute = []; // Array of {x, y, z} representing flight tracks
+
+        // Map sizing parameters
+        let mapWidth = 120;
+        let mapHeight = 120;
+        let terrainNoiseScale = 0.03;
+        let terrainAmp = 15;
+
+        // Initialize 3D Graphics Viewport
+        function initThree() {
+            const container = document.getElementById('canvas-container');
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+
+            // Scene creation with foggy depth
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x0a0f1d);
+            scene.fog = new THREE.FogExp2(0x0a0f1d, 0.003);
+
+            // Camera setup
+            camera = new THREE.PerspectiveCamera(45, width / height, 1, 1000);
+            camera.position.set(130, 110, 130);
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(width, height);
+            renderer.shadowMap.enabled = true;
+            renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            container.appendChild(renderer.domElement);
+
+            // Controls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.maxPolarAngle = Math.PI / 2.1; // Limit camera from going below horizon
+            controls.minDistance = 20;
+            controls.maxDistance = 350;
+
+            // Lights
+            const ambientLight = new THREE.AmbientLight(0xffffff, 0.25);
+            scene.add(ambientLight);
+
+            const dirLight = new THREE.DirectionalLight(0xddeeff, 1.1);
+            dirLight.position.set(100, 200, 50);
+            dirLight.castShadow = true;
+            dirLight.shadow.mapSize.width = 2048;
+            dirLight.shadow.mapSize.height = 2048;
+            dirLight.shadow.camera.near = 0.5;
+            dirLight.shadow.camera.far = 500;
+            const d = 150;
+            dirLight.shadow.camera.left = -d;
+            dirLight.shadow.camera.right = d;
+            dirLight.shadow.camera.top = d;
+            dirLight.shadow.camera.bottom = -d;
+            scene.add(dirLight);
+
+            // Grid Helper (Infinite Sea Grid style)
+            const gridHelper = new THREE.GridHelper(500, 50, 0x1e293b, 0x111827);
+            gridHelper.position.y = -0.1;
+            scene.add(gridHelper);
+
+            // Container groups added to main scene
+            scene.add(waypointMarkersGroup);
+            scene.add(groundCapturesGroup);
+            scene.add(gcpMarkersGroup);
+
+            // Create initial scene elements
+            buildTerrain();
+            createDrone();
+            createCameraFrustum();
+            generateDefaultPath();
+
+            // Handle Resize
+            window.addEventListener('resize', onWindowResize);
+        }
+
+        // Math Simplex-Like Wave Terrain Generation
+        function getTerrainHeight(x, z) {
+            // Generates complex mountain heights based on multiple wave harmonics
+            const h1 = Math.sin(x * terrainNoiseScale) * Math.cos(z * terrainNoiseScale) * terrainAmp;
+            const h2 = Math.cos(x * 0.01) * Math.sin(z * 0.01) * (terrainAmp * 0.5);
+            const h3 = Math.sin(x * 0.08) * Math.sin(z * 0.08) * 3; // tiny details
+            let height = h1 + h2 + h3;
+            // flatten a central segment to behave as Launchpoint (Home base)
+            const distFromHome = Math.sqrt(x*x + z*z);
+            if (distFromHome < 25) {
+                height = height * (distFromHome / 25);
+            }
+            return height;
+        }
+
+        function buildTerrain() {
+            if (terrain) scene.remove(terrain);
+
+            const size = 300;
+            const segments = 80;
+            terrainGeom = new THREE.PlaneGeometry(size, size, segments, segments);
+            terrainGeom.rotateX(-Math.PI / 2);
+
+            const pos = terrainGeom.attributes.position;
+            for (let i = 0; i < pos.count; i++) {
+                const x = pos.getX(i);
+                const z = pos.getZ(i);
+                const h = getTerrainHeight(x, z);
+                pos.setY(i, h);
+            }
+            terrainGeom.computeVertexNormals();
+
+            // Gorgeous cybernetic grid mesh styling for high-tech surveying vibe
+            terrainMat = new THREE.MeshStandardMaterial({
+                color: 0x1e293b,
+                wireframe: false,
+                roughness: 0.8,
+                metalness: 0.2,
+                flatShading: true,
+                vertexColors: false
+            });
+
+            terrain = new THREE.Mesh(terrainGeom, terrainMat);
+            terrain.receiveShadow = true;
+            terrain.castShadow = true;
+            scene.add(terrain);
+
+            // Add some procedural cyber 3D architectural cubes (Mock buildings/Survey features)
+            for (let i = 0; i < 6; i++) {
+                const bSize = 8 + Math.random() * 12;
+                const geom = new THREE.BoxGeometry(bSize, bSize * 1.5, bSize);
+                const mat = new THREE.MeshStandardMaterial({
+                    color: 0x111e36,
+                    roughness: 0.3,
+                    metalness: 0.8,
+                    transparent: true,
+                    opacity: 0.85,
+                    flatShading: true
+                });
+                const box = new THREE.Mesh(geom, mat);
+                const bx = -100 + Math.random() * 200;
+                const bz = -100 + Math.random() * 200;
+                // align on terrain elevation
+                const by = getTerrainHeight(bx, bz) + (bSize * 1.5) / 2;
+                box.position.set(bx, by, bz);
+                box.castShadow = true;
+                box.receiveShadow = true;
+                terrain.add(box);
+            }
+        }
+
+        // Build Procedural 3D Drone Model
+        function createDrone() {
+            drone = new THREE.Group();
+
+            // Drone Center Hub Core
+            const coreGeom = new THREE.CylinderGeometry(2, 2, 0.8, 8);
+            const coreMat = new THREE.MeshStandardMaterial({ color: 0x0891b2, metalness: 0.9, roughness: 0.1 });
+            const core = new THREE.Mesh(coreGeom, coreMat);
+            core.castShadow = true;
+            drone.add(core);
+
+            // 4 Quad arms
+            const armMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 });
+            const rotorMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, transparent: true, opacity: 0.4 });
+            
+            drone.rotors = [];
+
+            for (let i = 0; i < 4; i++) {
+                const angle = (Math.PI / 2) * i + (Math.PI / 4);
+                const armGeom = new THREE.BoxGeometry(5, 0.3, 0.3);
+                const arm = new THREE.Mesh(armGeom, armMat);
+                arm.position.set(Math.cos(angle) * 2.5, 0, Math.sin(angle) * 2.5);
+                arm.rotation.y = -angle;
+                arm.castShadow = true;
+                drone.add(arm);
+
+                // Motor heads
+                const motorGeom = new THREE.CylinderGeometry(0.5, 0.5, 0.6, 6);
+                const motor = new THREE.Mesh(motorGeom, coreMat);
+                motor.position.set(Math.cos(angle) * 5, 0.3, Math.sin(angle) * 5);
+                drone.add(motor);
+
+                // Dual blade propeller
+                const propGeom = new THREE.BoxGeometry(3.5, 0.05, 0.2);
+                const prop = new THREE.Mesh(propGeom, rotorMat);
+                prop.position.set(Math.cos(angle) * 5, 0.6, Math.sin(angle) * 5);
+                drone.add(prop);
+                drone.rotors.push(prop);
+            }
+
+            // Gps Dome Antennas
+            const gpsGeom = new THREE.SphereGeometry(0.7, 8, 8);
+            const gpsMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+            const gps = new THREE.Mesh(gpsGeom, gpsMat);
+            gps.position.set(-1, 0.8, -1);
+            drone.add(gps);
+
+            // Status light indicator
+            const lightGeom = new THREE.SphereGeometry(0.3, 6, 6);
+            const statusLightMat = new THREE.MeshBasicMaterial({ color: 0x00ff00 });
+            const statusLight = new THREE.Mesh(lightGeom, statusLightMat);
+            statusLight.position.set(0, -0.4, 1.8);
+            drone.add(statusLight);
+            drone.statusLight = statusLight;
+
+            // Camera payload gimbal underneath
+            const gimbalGeom = new THREE.SphereGeometry(0.6, 8, 8);
+            const gimbalMat = new THREE.MeshStandardMaterial({ color: 0x111827 });
+            const gimbal = new THREE.Mesh(gimbalGeom, gimbalMat);
+            gimbal.position.set(0, -0.6, 0.4);
+            drone.add(gimbal);
+
+            drone.position.set(0, 0, 0); // home position
+            scene.add(drone);
+        }
+
+        // Camera Projector Sensor Cone (Visual field representing overlap coverage on ground)
+        function createCameraFrustum() {
+            // Frustum cone visualizer (A cyan transparent pyramid showing what the drone camera sees)
+            const geom = new THREE.ConeGeometry(8, 20, 4);
+            geom.rotateX(Math.PI); // Point downwards
+            geom.translate(0, -10, 0); // Offset pivot so top of cone is at drone origin
+
+            const mat = new THREE.MeshBasicMaterial({
+                color: 0x06b6d4,
+                transparent: true,
+                opacity: 0.15,
+                wireframe: true
+            });
+
+            cameraFrustumCone = new THREE.Mesh(geom, mat);
+            cameraFrustumCone.visible = false;
+            scene.add(cameraFrustumCone);
+        }
+
+        // Automatically Generates Lawnmower / Grid Flight Survey Track
+        function generateDefaultPath() {
+            // Read inputs
+            mapWidth = parseFloat(document.getElementById('input-width').value) || 120;
+            mapHeight = parseFloat(document.getElementById('input-height').value) || 120;
+            const targetAlt = parseInt(document.getElementById('slide-altitude').value) || 60;
+            const overlapSide = parseInt(document.getElementById('slide-overlap-side').value) || 70;
+            const overlapFront = parseInt(document.getElementById('slide-overlap-front').value) || 80;
+
+            // Clear old waypoint graphics
+            while (waypointMarkersGroup.children.length > 0) {
+                waypointMarkersGroup.remove(waypointMarkersGroup.children[0]);
+            }
+            if (waypointsLine) scene.remove(waypointsLine);
+
+            // Calculate flight line spacing based on sensor characteristics
+            // Mimicking DJI/Pix4D formulas: Field of view (FOV) assumed 80 degrees
+            const fov = 80 * (Math.PI / 180);
+            const footprintWidth = 2 * targetAlt * Math.tan(fov / 2); // footprint on ground
+
+            // Line spacing (Side overlap distance step)
+            const lineSpacing = footprintWidth * (1.0 - (overlapSide / 100));
+            // Trigger interval distance step (Front overlap distance step)
+            const triggerDistance = footprintWidth * (1.0 - (overlapFront / 100));
+
+            // Generate Snake (Lawnmower) grid tracks bounded by Width/Height
+            waypoints = [];
+            const halfW = mapWidth / 2;
+            const halfH = mapHeight / 2;
+
+            // Add starting waypoint (Take off home point)
+            waypoints.push(new THREE.Vector3(0, targetAlt, 0));
+
+            // Create grid passes
+            let dir = 1;
+            for (let z = -halfH; z <= halfH; z += lineSpacing) {
+                if (dir > 0) {
+                    for (let x = -halfW; x <= halfW; x += triggerDistance) {
+                        waypoints.push(new THREE.Vector3(x, targetAlt, z));
+                    }
+                } else {
+                    for (let x = halfW; x >= -halfW; x -= triggerDistance) {
+                        waypoints.push(new THREE.Vector3(x, targetAlt, z));
+                    }
+                }
+                dir *= -1; // Switch direction
+            }
+
+            // Return to launch target (Home point)
+            waypoints.push(new THREE.Vector3(0, targetAlt, 0));
+
+            // Display route waypoints and connection lines
+            const markerGeom = new THREE.SphereGeometry(1.2, 8, 8);
+            const markerMat = new THREE.MeshBasicMaterial({ color: 0xf59e0b });
+            const linePoints = [];
+
+            waypoints.forEach((wp, index) => {
+                // Ground aligned waypoint lines
+                linePoints.push(wp);
+
+                // Add waypoint index spherical sphere node marker (skip home return for visualization)
+                if (index > 0 && index < waypoints.length - 1) {
+                    const marker = new THREE.Mesh(markerGeom, markerMat);
+                    marker.position.copy(wp);
+                    
+                    // Small glowing outline rings
+                    const ringGeom = new THREE.RingGeometry(1.8, 2.2, 8);
+                    ringGeom.rotateX(-Math.PI/2);
+                    const ringMat = new THREE.MeshBasicMaterial({ color: 0x06b6d4, side: THREE.DoubleSide });
+                    const ring = new THREE.Mesh(ringGeom, ringMat);
+                    ring.position.set(0, -wp.y + getTerrainHeight(wp.x, wp.z) + 0.1, 0); // Project marker onto ground
+                    marker.add(ring);
+
+                    waypointMarkersGroup.add(marker);
+                }
+            });
+
+            // Draw connecting lines with glowing blue dash lines
+            const lineGeom = new THREE.BufferGeometry().setFromPoints(linePoints);
+            const lineMat = new THREE.LineBasicMaterial({
+                color: 0x06b6d4,
+                linewidth: 2
+            });
+            waypointsLine = new THREE.Line(lineGeom, lineMat);
+            scene.add(waypointsLine);
+
+            // Update estimates and HTML
+            updateSurveySpecCalculations(footprintWidth, triggerDistance, targetAlt);
+        }
+
+        function updateSurveySpecCalculations(footprintWidth, triggerDistance, targetAlt) {
+            // Real Photogrammetry calculations
+            // GSD (Ground Sampling Distance) = (Pixel Size * Altitude) / Focal Length
+            // Assuming default standard sensor (20MP, 1-inch sensor, 8.8mm lens, pixel size 2.4um)
+            const gsdVal = (targetAlt * 100) / 38.5; // cm/px estimate
+            document.getElementById('calc-gsd').textContent = `${gsdVal.toFixed(2)} cm/px`;
+
+            // Frame capture trigger period calculated based on velocity
+            const speed = parseFloat(document.getElementById('slide-speed').value) || 6;
+            const triggerTime = triggerDistance / speed;
+            document.getElementById('calc-trigger-time').textContent = `${triggerTime.toFixed(1)} 초`;
+            droneState.triggerInterval = triggerTime;
+
+            // Stats info
+            const surveyArea = mapWidth * mapHeight;
+            document.getElementById('tel-est-area').textContent = `${surveyArea.toLocaleString()} m²`;
+
+            // Time calculation = Route distance / speed + overhead
+            const routeDistance = waypoints.length * triggerDistance;
+            const totalSecs = Math.round(routeDistance / speed);
+            const mins = Math.floor(totalSecs / 60);
+            const secs = totalSecs % 60;
+            document.getElementById('tel-est-time').textContent = `${mins}분 ${secs}초`;
+
+            // Reset dynamic HUD count stats
+            document.getElementById('hud-photos').textContent = `0 / ${waypoints.length - 2}`;
+            document.getElementById('tel-wp-idx').textContent = `0 / ${waypoints.length}`;
+        }
+
+        // Inserts Ground Control Points (GCPs) on terrain for realistic photogrammetric alignment
+        function addGcpAtRandom() {
+            // Create a GCP checkerboard target mesh
+            const gcpGeom = new THREE.PlaneGeometry(6, 6);
+            gcpGeom.rotateX(-Math.PI / 2);
+
+            // Create a procedural 2x2 checkerboard texture or simple checkered meshes
+            const checkGroup = new THREE.Group();
+            
+            // Outer cross/checkerboard look
+            const m1 = new THREE.MeshBasicMaterial({ color: 0xffffff, side: THREE.DoubleSide });
+            const m2 = new THREE.MeshBasicMaterial({ color: 0x000000, side: THREE.DoubleSide });
+            
+            for (let i = 0; i < 2; i++) {
+                for (let j = 0; j < 2; j++) {
+                    const planeGeom = new THREE.PlaneGeometry(3, 3);
+                    planeGeom.rotateX(-Math.PI/2);
+                    const plane = new THREE.Mesh(planeGeom, (i+j)%2 === 0 ? m1 : m2);
+                    plane.position.set(-1.5 + i*3, 0.02, -1.5 + j*3);
+                    checkGroup.add(plane);
+                }
+            }
+
+            // High precision target stick
+            const poleGeom = new THREE.CylinderGeometry(0.15, 0.15, 3, 6);
+            const poleMat = new THREE.MeshStandardMaterial({ color: 0xff3b30, metalness: 0.6 });
+            const pole = new THREE.Mesh(poleGeom, poleMat);
+            pole.position.set(0, 1.5, 0);
+            checkGroup.add(pole);
+
+            const redSphereGeom = new THREE.SphereGeometry(0.5, 6, 6);
+            const redSphereMat = new THREE.MeshBasicMaterial({ color: 0xff3b30 });
+            const sphere = new THREE.Mesh(redSphereGeom, redSphereMat);
+            sphere.position.set(0, 3, 0);
+            checkGroup.add(sphere);
+
+            // Place coordinates
+            const rx = -mapWidth/2.2 + Math.random() * (mapWidth/1.1);
+            const rz = -mapHeight/2.2 + Math.random() * (mapHeight/1.1);
+            const ry = getTerrainHeight(rx, rz);
+
+            checkGroup.position.set(rx, ry, rz);
+            checkGroup.name = "GCP";
+            gcpMarkersGroup.add(checkGroup);
+
+            // Temporary notify system
+            notifyToast(`GCP 기준점이 성공적으로 배치되었습니다: X: ${rx.toFixed(1)}, Y: ${rz.toFixed(1)}`);
+        }
+
+        function notifyToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'fixed bottom-24 right-5 bg-slate-900/90 text-cyan-400 px-4 py-2.5 rounded-lg border border-cyan-800 text-xs shadow-xl z-50 flex items-center space-x-2 animate-bounce';
+            toast.innerHTML = `<i class="fa-solid fa-bell"></i> <span>${msg}</span>`;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3200);
+        }
+
+        // Shoots a single optical photogrammetry snap & paints grid on the ground terrain
+        function snapGroundPhoto() {
+            droneState.photosTaken++;
+            
+            // Flash sound
+            playShutterSound();
+
+            // Update stats
+            document.getElementById('tel-photos').textContent = `${droneState.photosTaken}장`;
+            document.getElementById('hud-photos').textContent = `${droneState.photosTaken} / ${waypoints.length - 2}`;
+
+            // Create terrain marker rectangle (simulating the overlapping orthophoto footprint)
+            const targetAlt = droneState.currentPos.y - getTerrainHeight(droneState.currentPos.x, droneState.currentPos.z);
+            const fov = 80 * (Math.PI / 180);
+            const footprintW = 2 * targetAlt * Math.tan(fov / 2);
+
+            const rectGeom = new THREE.PlaneGeometry(footprintW, footprintW);
+            rectGeom.rotateX(-Math.PI / 2);
+            
+            const rectMat = new THREE.MeshBasicMaterial({
+                color: 0x10b981, // Emerald green representation of a map photo slice
+                transparent: true,
+                opacity: 0.25,
+                side: THREE.DoubleSide
+            });
+
+            const capturePatch = new THREE.Mesh(rectGeom, rectMat);
+            capturePatch.position.set(droneState.currentPos.x, getTerrainHeight(droneState.currentPos.x, droneState.currentPos.z) + 0.1, droneState.currentPos.z);
+            
+            // Add a thin cyber border to the captured slice
+            const borderGeom = new THREE.LineSegments(
+                new THREE.EdgesGeometry(rectGeom),
+                new THREE.LineBasicMaterial({ color: 0x059669, linewidth: 1.5 })
+            );
+            capturePatch.add(borderGeom);
+
+            groundCapturesGroup.add(capturePatch);
+
+            // Inject thumbnail into live photo gallery sidebar
+            const gallery = document.getElementById('live-photo-gallery');
+            const gallerySnaps = document.getElementById('gallery-snaps');
+            gallery.classList.remove('hidden');
+
+            const thumb = document.createElement('div');
+            thumb.className = 'aspect-square bg-slate-800 rounded border border-emerald-500/50 overflow-hidden relative flex flex-col justify-end p-0.5 text-[8px] font-mono text-emerald-400';
+            
+            // Generate a canvas preview representation with synthetic colored noise / grid line
+            const canvasImg = document.createElement('div');
+            canvasImg.className = 'absolute inset-0 opacity-40 bg-cover bg-center bg-no-repeat';
+            canvasImg.style.backgroundImage = `url('https://placehold.co/100x100/10b981/ffffff?text=IMG_${droneState.photosTaken.toString().padStart(3, '0')}')`;
+            thumb.appendChild(canvasImg);
+
+            const tag = document.createElement('span');
+            tag.className = 'z-10 bg-black/70 px-0.5 leading-none rounded';
+            tag.textContent = `#${droneState.photosTaken}`;
+            thumb.appendChild(tag);
+            
+            gallerySnaps.prepend(thumb);
+            document.getElementById('gallery-count').textContent = `${droneState.photosTaken} photos`;
+        }
+
+        // Frame ticks & Physics Simulation Loop
+        function animate(timestamp) {
+            requestAnimationFrame(animate);
+
+            const deltaTime = (timestamp - droneState.lastFrameTime) / 1000;
+            droneState.lastFrameTime = timestamp;
+
+            // Rotate drone propellers
+            if (drone && drone.rotors) {
+                const rpm = droneState.mode === "FLYING" ? 0.9 : (droneState.mode === "STANDBY" ? 0.05 : 0.4);
+                drone.rotors.forEach(r => r.rotation.y += rpm);
+            }
+
+            // Simulate Autopilot Navigation Along Waypoints
+            if (droneState.mode === "FLYING" && waypoints.length > 0) {
+                const targetWp = waypoints[droneState.targetWpIdx];
+                const currentWp = droneState.currentPos;
+
+                // Move towards target waypoint
+                const distanceToTarget = currentWp.distanceTo(targetWp);
+                const speed = parseFloat(document.getElementById('slide-speed').value) || 6;
+
+                // Turn (Yaw) drone smoothly towards next node
+                const targetYaw = Math.atan2(targetWp.x - currentWp.x, targetWp.z - currentWp.z);
+                drone.rotation.y += (targetYaw - drone.rotation.y) * 0.1;
+                droneState.yaw = drone.rotation.y * (180 / Math.PI);
+                document.getElementById('hud-yaw').textContent = `${Math.round(droneState.yaw + 180)}°`;
+
+                if (distanceToTarget > 1.0) {
+                    const step = speed * deltaTime;
+                    currentWp.lerp(targetWp, step / distanceToTarget);
+                    drone.position.copy(currentWp);
+
+                    // Sync HUD cone projection
+                    cameraFrustumCone.position.copy(drone.position);
+                    cameraFrustumCone.rotation.y = drone.rotation.y;
+
+                    // Update real-time instruments
+                    document.getElementById('tel-alt').textContent = `${drone.position.y.toFixed(1)} m`;
+                    document.getElementById('hud-altitude').textContent = `${drone.position.y.toFixed(1)} m`;
+                    document.getElementById('tel-speed').textContent = `${speed.toFixed(1)} m/s`;
+                    document.getElementById('hud-speed').textContent = `${speed.toFixed(1)} m/s`;
+                    document.getElementById('tel-x').textContent = drone.position.x.toFixed(2);
+                    document.getElementById('tel-y').textContent = drone.position.z.toFixed(2);
+
+                    // Automatic Photo trigger timer integration
+                    const currentTimeSecs = timestamp / 1000;
+                    if (currentTimeSecs - droneState.lastTriggerTime >= droneState.triggerInterval) {
+                        // Avoid snapping photos on landing phase back-to-home returns
+                        if (droneState.targetWpIdx > 0 && droneState.targetWpIdx < waypoints.length - 1) {
+                            snapGroundPhoto();
+                            droneState.lastTriggerTime = currentTimeSecs;
+                        }
+                    }
+
+                    // Battery drainage simulator
+                    droneState.battery -= deltaTime * 0.05;
+                    if (droneState.battery < 20) {
+                        drone.statusLight.material.color.setHex(0xff0000); // Danger blinking low energy
+                    }
+                    document.getElementById('top-battery').textContent = `${Math.max(0, Math.round(droneState.battery))}%`;
+
+                } else {
+                    // Waypoint reached, advance
+                    droneState.targetWpIdx++;
+                    document.getElementById('tel-wp-idx').textContent = `${droneState.targetWpIdx} / ${waypoints.length}`;
+                    
+                    // Calc slider/bar progress
+                    const progress = (droneState.targetWpIdx / waypoints.length) * 100;
+                    document.getElementById('tel-prog-percent').textContent = `${Math.ro
